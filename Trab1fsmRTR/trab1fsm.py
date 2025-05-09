@@ -10,7 +10,7 @@ class Estado(Enum):
   Alinhado=1
   Finalizado=2
 
-class Protocolo:
+class ProtocoloPAQ:
 
   def __init__(self):
     self.estado = Estado.Realinhando
@@ -28,23 +28,34 @@ class Protocolo:
 
   def handle_realinhando(self, sstring):
     # tratador de eventos no estado Realinhando
-    if sstring[indice: indice + Byte] == PAQ:
-      indice += Quadro
-      if sstring[indice + Bit] == 1:
-         indice += Quadro
-         if sstring[indice: indice + Byte] == PAQ:
+    if self.indice + Byte < len(sstring) and sstring[self.indice: self.indice + Byte] == PAQ:
+      self.indice += Quadro
+      if self.indice + Byte < len(sstring) and sstring[self.indice + Bit] == '1':
+         self.indice += Quadro
+         if self.indice + Byte < len(sstring) and sstring[self.indice: self.indice + Byte] == PAQ:
           self.estado = Estado.Alinhado
-    self.estado = Estado.Realinhando
+          return
+    if self.indice < len(sstring):
+      self.estado = Estado.Finalizado
+    else:
+      self.estado = Estado.Realinhando
 
   def handle_alinhado(self, sstring):
     # tratador de eventos no estado Alinhado
-    indice += 2*Quadro
-    if sstring[indice: indice + Byte] != PAQ:
-      indice += 2*Quadro
-      if sstring[indice: indice + Byte] != PAQ:
-        indice += 2*Quadro
-        if sstring[indice: indice + Byte] != PAQ:
+    if self.indice + 2*Quadro > len(sstring):
+      self.estado = Estado.Finalizado
+      return
+    self.cstring.append(sstring[self.indice: self.indice + 2*Quadro])
+    self.indice += 2*Quadro
+    if self.indice + Byte < len(sstring) and sstring[self.indice: self.indice + Byte] != PAQ:
+      self.cstring.append(sstring[self.indice: self.indice + 2*Quadro])
+      self.indice += 2*Quadro
+      if self.indice + Byte < len(sstring) and sstring[self.indice: self.indice + Byte] != PAQ:
+        self.cstring.append(sstring[self.indice: self.indice + 2*Quadro])
+        self.indice += 2*Quadro
+        if self.indice + Byte < len(sstring) and sstring[self.indice: self.indice + Byte] != PAQ :
           self.estado = Estado.Realinhando
+          return
     self.estado = Estado.Alinhado
 
   def handle_finalizado(self, sstring):
@@ -57,31 +68,17 @@ def quebrar_linha(texto, tamanho):
     return '\n'.join([texto[i:i+tamanho] for i in range(0, len(texto), tamanho)])
 
 def leitura(texto: str):
-    prot:Protocolo
+    prot = ProtocoloPAQ()
+    indice = 0
     indice = texto.find(PAQ, indice)
-    if indice != -1 and len(texto) > 512 + indice:
+    if indice != -1 and len(texto) > 2*Quadro + indice:
       sstring = texto[indice:]
       while prot.estado != Estado.Finalizado:
         prot.mef(sstring)
+      return prot.cstring
     else:
       print(f"não foi encontrada.")
       return "Erro"
-    
-
-    while 1:
-        indice = texto.find(PAQ, indice)
-        # Verificando se a sequência foi encontrada
-        if indice != -1 and len(texto) > 512 + indice:
-            if texto[indice+257] == "1":
-                if (texto.find(PAQ, indice+8) == 512 + indice):
-                    substring = texto[indice:]
-                    print(f"foi encontrado a primeira flag: {indice}")
-                    return substring
-            print(f"flag errada em: {indice}")
-            indice = indice+8
-        else:
-            print(f"não foi encontrada.")
-            return "Erro"
 
 arquivo = "RX(vetor)MQ_v2.txt"
 

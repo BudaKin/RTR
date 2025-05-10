@@ -18,14 +18,15 @@ class ProtPAMQ:
   def __init__(self):
     self.estado = Estado.Realinhando
     self.indice = 0
+    self.cstring = []
 
-  def mef(self, sstring, canal):
+  def mef(self, sstring):
     # este método identifica o estado atual, e chama o tratador correspondente
     # print(f"[DEBUG] Estado: {self.estado}, Indice: {self.indice}")
     if self.estado == Estado.Realinhando:
       self.handle_realinhando(sstring)
     elif self.estado == Estado.Alinhado:
-      self.handle_alinhado(sstring, canal)
+      self.handle_alinhado(sstring)
     elif self.estado == Estado.Finalizado:
       self.handle_finalizado(sstring)
 
@@ -40,29 +41,25 @@ class ProtPAMQ:
       self.indice += Quadro
       self.estado = Estado.Realinhando
 
-  def handle_alinhado(self, sstring, canal):
+  def handle_alinhado(self, sstring):
     # tratador de eventos no estado Alinhado
-    canal_r = canal
-    salto = 0
-
-    if canal_r > 16:
-      canal_r -= 15
-      salto += 4*Bit
-
-    Dist_desejada = self.indice + Quadro * canal_r + DIST_PAMQ + salto
-
-    if Dist_desejada > len(sstring):
-      self.estado = Estado.Finalizado
-      return
-    elif sstring[self.indice + DIST_PAMQ : self.indice + DIST_PAMQ + 4*Bit] != PAMQ:
+    if sstring[self.indice + DIST_PAMQ : self.indice + DIST_PAMQ + 4*Bit] != PAMQ:
       print(f"Desalinhado!")
       self.estado = Estado.Realinhando
       return
-    else:
-      info = sstring[Dist_desejada : Dist_desejada + 4*Bit]
-      print(f"Canal: {canal}, informação: {info}")
-      self.indice += MultiQuadro
-      self.estado = Estado.Alinhado
+    for canal in range(1, 15):
+      canal2 = canal + 15
+      dist_canal1 = self.indice + Quadro * canal + DIST_PAMQ
+      dist_canal2 = dist_canal1 + 4*Bit
+      if dist_canal2 > len(sstring):
+        self.estado = Estado.Finalizado
+        return
+      info = sstring[dist_canal1 : dist_canal1 + 2*Bit]
+      info2 = sstring[dist_canal2 : dist_canal2 + 2*Bit]
+      self.cstring.append(f"Canal: {canal}, informação: {info} ///// Canal: {canal2}, informação: {info2}\n")
+
+    self.indice += MultiQuadro
+    self.estado = Estado.Alinhado
 
   def handle_finalizado(self, sstring):
     # tratador de eventos no estado Finalizado
@@ -99,12 +96,13 @@ class ProtPAQ:
     if indice_local + Bit < len(sstring) and sstring[indice_local + Bit] == '1':
         indice_local += Quadro
         if indice_local + Byte < len(sstring) and sstring[indice_local: indice_local + Byte] == PAQ:
-          print(f"Era um PAQ mesmo, Alinhado.")
+          print("Era um PAQ mesmo, Alinhado.")
           self.estado = Estado.Alinhado
           return
     if self.indice > len(sstring):
       self.estado = Estado.Finalizado
     else:
+      print("Não era um PAQ, de volta à procura.")
       self.indice += Byte
       self.estado = Estado.Realinhando
 
@@ -134,7 +132,7 @@ class ProtPAQ:
 # Abrir o arquivo em modo escrita
 
 def quebrar_linha(texto, tamanho):
-    return '\n'.join([texto[i:i+tamanho] for i in range(0, len(texto), tamanho)])
+  return '\n'.join([texto[i:i+tamanho] for i in range(0, len(texto), tamanho)])
 
 def leitura(texto: str):
   prot = ProtPAQ()
@@ -143,25 +141,23 @@ def leitura(texto: str):
   print(f"Leitura Finalizada!")
   return ''.join(prot.cstring)
 
-def ver_pamq(texto: str, canal: int):
+def ver_pamq(texto: str):
   prot = ProtPAMQ()
   while prot.estado != Estado.Finalizado:
-    prot.mef(texto, canal)
+    prot.mef(texto)
   print(f"Verificação do PAMQ concluída!")
+  return ''.join(prot.cstring)
 
 arquivo = "RX(vetor)MQ_v2.txt"
-canal_desejado = 30
 
-if canal_desejado < 1 or canal_desejado > 30:
-  print(f"Escolha um canal válido! (entre 1 e 30)")
-  exit(-1)
+with open("saidaPAQ.txt", "w") as saida:
+  with open(arquivo, "r") as entrada:
+    texto = entrada.read()
+    texto = ''.join([c for c in texto if c in '01'])
+    lido = leitura(texto)
+    resultante = ' '.join(lido) # seapara cada bit por um espaço
+    resultante = quebrar_linha(resultante, 128) # quebra a linha a cada 128 bits
+    saida.write(resultante)
 
-with open("saida_fsm.txt", "w") as saida:
-    with open(arquivo, "r") as entrada:
-        texto = entrada.read()
-        substring = ''.join([c for c in texto if c in '01'])
-        lido = leitura(substring)
-        ver_pamq(lido, canal_desejado)
-        lido = ' '.join(lido) # seapara cada bit por um espaço
-        lido = quebrar_linha(lido, 128) # quebra a linha a cada 128 bits
-        saida.write(lido)
+with open("saidaPAMQ.txt", "w") as saida:
+  saida.write(ver_pamq(lido))

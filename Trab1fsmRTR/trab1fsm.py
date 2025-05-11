@@ -47,7 +47,7 @@ class ProtPAMQ:
       print(f"Desalinhado!")
       self.estado = Estado.Realinhando
       return
-    for canal in range(1, 15):
+    for canal in range(1, 16):
       canal2 = canal + 15
       dist_canal1 = self.indice + Quadro * canal + DIST_PAMQ
       dist_canal2 = dist_canal1 + 4*Bit

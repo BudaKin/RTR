@@ -12,6 +12,7 @@ Canal: 11, informação: 10 ///// Canal: 26, informação: 10
 Canal: 12, informação: 11 ///// Canal: 27, informação: 10
 Canal: 13, informação: 10 ///// Canal: 28, informação: 10
 Canal: 14, informação: 11 ///// Canal: 29, informação: 10
+Canal: 15, informação: 10 ///// Canal: 30, informação: 10
 Canal: 1, informação: 10 ///// Canal: 16, informação: 10
 Canal: 2, informação: 11 ///// Canal: 17, informação: 10
 Canal: 3, informação: 10 ///// Canal: 18, informação: 10
